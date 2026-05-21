@@ -10,6 +10,7 @@ const https = existsSync('certs/naim-dev.key') && existsSync('certs/naim-dev.crt
   : undefined;
 
 export default defineConfig({
+  base: process.env.GITHUB_ACTIONS ? '/naim/' : '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
