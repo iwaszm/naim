@@ -5,10 +5,11 @@ import {
   type HandLandmarkerResult,
   type PoseLandmarkerResult,
 } from '@mediapipe/tasks-vision';
+import { assetUrl } from '../assets/baseUrl';
 
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
-const POSE_MODEL_URL = '/models/pose_landmarker_lite.task';
-const HAND_MODEL_URL = '/models/hand_landmarker.task';
+const POSE_MODEL_URL = assetUrl('models/pose_landmarker_lite.task');
+const HAND_MODEL_URL = assetUrl('models/hand_landmarker.task');
 const POSE_CDN_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';
 const HAND_CDN_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task';
 

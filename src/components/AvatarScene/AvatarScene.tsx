@@ -4,6 +4,7 @@ import { VRMPreview } from './VRMPreview';
 import { getAvatarIntentAdapter } from '../../core/avatar/avatarRegistry';
 import { getFeedbackAdapter } from '../../core/feedback/feedbackRegistry';
 import { useDashboardStore } from '../../store/useDashboardStore';
+import { assetUrl } from '../../core/assets/baseUrl';
 
 function IntentCard({ title, intent, modelId }: { title: string; intent?: AvatarIntent; modelId: string }) {
   return (
@@ -32,8 +33,8 @@ type AvatarSceneProps = {
 };
 
 const VRM_MODELS = [
-  { id: 'c', label: 'Avatar C', url: '/models-local/AvatarSample_C.vrm' },
-  { id: 's', label: 'Avatar S', url: '/models-local/AvatarSample_S.vrm' },
+  { id: 'c', label: 'Avatar C', url: assetUrl('models-local/AvatarSample_C.vrm') },
+  { id: 's', label: 'Avatar S', url: assetUrl('models-local/AvatarSample_S.vrm') },
 ] as const;
 type VrmModelId = typeof VRM_MODELS[number]['id'];
 

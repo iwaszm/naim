@@ -4,8 +4,9 @@ import {
   type FaceLandmarkerResult,
 } from '@mediapipe/tasks-vision';
 import type { BlendshapeMap, HeadPose } from '../../types/signals';
+import { assetUrl } from '../assets/baseUrl';
 
-const DEFAULT_MODEL_URL = '/models/face_landmarker.task';
+const DEFAULT_MODEL_URL = assetUrl('models/face_landmarker.task');
 const CDN_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
 
 export async function createFaceLandmarker(modelAssetPath = DEFAULT_MODEL_URL): Promise<FaceLandmarker> {

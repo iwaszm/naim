@@ -1,8 +1,9 @@
 import type { Holistic as HolisticInstance, Results as HolisticResults } from '@mediapipe/holistic';
 import type { HandDebugFrame, PoseHandDebug } from '../../types/signals';
+import { assetUrl } from '../assets/baseUrl';
 
 const HOLISTIC_VERSION = '0.5.1675471629';
-const HOLISTIC_ASSET_URL = '/vendor/mediapipe/holistic';
+const HOLISTIC_ASSET_URL = assetUrl('vendor/mediapipe/holistic');
 const HOLISTIC_SCRIPT_URL = `${HOLISTIC_ASSET_URL}/holistic.js`;
 
 declare global {
