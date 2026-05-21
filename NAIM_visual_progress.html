@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NAIM 当前进度与技术框架可视化</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: rgba(17, 22, 32, 0.78);
+      --panel-strong: rgba(25, 32, 48, 0.92);
+      --ink: #edf4ff;
+      --muted: #9caec7;
+      --faint: #60708a;
+      --gold: #f4c86a;
+      --cyan: #62e8ff;
+      --violet: #b18cff;
+      --green: #7dffb2;
+      --red: #ff7f95;
+      --line: rgba(160, 190, 230, 0.2);
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --serif: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      --sans: "Avenir Next", "Segoe UI", "Noto Sans SC", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at 16% 8%, rgba(98, 232, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 82% 3%, rgba(244, 200, 106, 0.16), transparent 28%),
+        radial-gradient(circle at 60% 90%, rgba(177, 140, 255, 0.14), transparent 32%),
+        linear-gradient(135deg, #07080c 0%, #0b111a 46%, #0a0b10 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at center, black, transparent 78%);
+    }
+
+    .page { width: min(1320px, calc(100% - 36px)); margin: 0 auto; padding: 36px 0 80px; }
+    .hero {
+      position: relative;
+      min-height: 440px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 34px;
+      padding: clamp(28px, 5vw, 64px);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025)),
+        radial-gradient(circle at 80% 35%, rgba(98,232,255,0.16), transparent 32%);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 620px;
+      height: 620px;
+      right: -220px;
+      top: -180px;
+      border-radius: 50%;
+      border: 1px solid rgba(244,200,106,0.38);
+      background: repeating-conic-gradient(from 22deg, rgba(244,200,106,0.09) 0 8deg, transparent 8deg 18deg);
+      filter: blur(0.2px);
+      opacity: 0.66;
+    }
+    .kicker { color: var(--gold); letter-spacing: 0.22em; text-transform: uppercase; font: 700 12px var(--mono); }
+    h1 {
+      position: relative;
+      max-width: 920px;
+      margin: 18px 0 16px;
+      font: 700 clamp(42px, 7vw, 90px) / 0.96 var(--serif);
+      letter-spacing: -0.055em;
+      z-index: 1;
+    }
+    .hero p { position: relative; max-width: 780px; color: var(--muted); font-size: clamp(16px, 2vw, 20px); line-height: 1.75; z-index: 1; }
+    .hero-meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+    .pill { border: 1px solid rgba(255,255,255,0.16); background: rgba(0,0,0,0.22); border-radius: 999px; padding: 10px 14px; color: #d9e8ff; font: 650 13px var(--mono); }
+    .pill.done { color: var(--green); border-color: rgba(125,255,178,0.34); }
+    .pill.tune { color: var(--gold); border-color: rgba(244,200,106,0.34); }
+
+    .nav { position: sticky; top: 12px; z-index: 10; display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 28px; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(7, 9, 14, 0.72); backdrop-filter: blur(18px); box-shadow: 0 16px 44px rgba(0,0,0,0.24); }
+    .nav a { color: var(--muted); text-decoration: none; padding: 10px 14px; border-radius: 999px; font-size: 13px; }
+    .nav a:hover { background: rgba(98,232,255,0.1); color: var(--ink); }
+
+    section { margin-top: 28px; }
+    .section-title { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 0 16px; }
+    h2 { margin: 0; font: 700 clamp(28px, 3vw, 44px) / 1.05 var(--serif); letter-spacing: -0.035em; }
+    .section-title span { color: var(--faint); font: 700 12px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card {
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 26px;
+      padding: 22px;
+      background: var(--panel);
+      box-shadow: 0 16px 52px rgba(0,0,0,0.28);
+      overflow: hidden;
+    }
+    .card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent 42%); opacity: 0.7; pointer-events: none; }
+    .card > * { position: relative; }
+    .metric { font: 800 38px/1 var(--serif); color: var(--ink); }
+    .label { margin-top: 9px; color: var(--muted); line-height: 1.55; }
+    .tag { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 999px; font: 700 11px var(--mono); letter-spacing: 0.05em; background: rgba(255,255,255,0.07); color: var(--muted); }
+    .tag.ok { color: var(--green); background: rgba(125,255,178,0.1); }
+    .tag.warn { color: var(--gold); background: rgba(244,200,106,0.11); }
+    .tag.lab { color: var(--cyan); background: rgba(98,232,255,0.1); }
+
+    .pipeline { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .pipe-row { display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: stretch; }
+    .pipe-stage { border-radius: 22px; padding: 18px; border: 1px solid rgba(255,255,255,0.12); background: rgba(12,17,26,0.76); }
+    .pipe-stage h3, .knowledge h3, .road h3 { margin: 0 0 8px; font-size: 18px; }
+    .pipe-stage p, .knowledge p, .road p, li { color: var(--muted); line-height: 1.62; }
+    .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .node { padding: 11px 13px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.055); color: #e8f2ff; font: 700 12px var(--mono); }
+    .arrow { color: var(--gold); opacity: 0.82; font-weight: 900; }
+
+    .svg-wrap { border-radius: 30px; border: 1px solid rgba(255,255,255,0.12); background: radial-gradient(circle at 50% 50%, rgba(98,232,255,0.08), rgba(255,255,255,0.025)); overflow: hidden; }
+    svg { display: block; width: 100%; height: auto; }
+    .svg-text { fill: #edf4ff; font-family: var(--mono); font-weight: 750; font-size: 12px; }
+    .svg-sub { fill: #9caec7; font-family: var(--sans); font-size: 11px; }
+    .svg-line { stroke: rgba(237,244,255,0.34); stroke-width: 1.4; stroke-dasharray: 7 8; }
+
+    .timeline { position: relative; padding-left: 22px; }
+    .timeline::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 1px; background: linear-gradient(var(--cyan), var(--gold), var(--violet)); opacity: 0.7; }
+    .event { position: relative; margin: 0 0 13px; padding: 16px 18px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.045); }
+    .event::before { content: ""; position: absolute; left: -21px; top: 21px; width: 11px; height: 11px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 22px rgba(244,200,106,0.8); }
+    .event b { color: var(--ink); }
+    .event small { color: var(--faint); font: 700 11px var(--mono); }
+
+    .knowledge { min-height: 260px; }
+    .knowledge strong { color: var(--ink); }
+    .code { margin-top: 14px; padding: 14px; border-radius: 16px; background: rgba(0,0,0,0.26); border: 1px solid rgba(255,255,255,0.08); font: 12px/1.6 var(--mono); color: #cbe8ff; overflow-x: auto; }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    button.filter { cursor: pointer; border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,0.04); padding: 9px 12px; font-weight: 700; }
+    button.filter.active { color: #061015; background: var(--cyan); border-color: transparent; }
+    .road { transition: transform 0.25s ease, opacity 0.25s ease; }
+    .road[hidden] { display: none; }
+
+    .footer { margin-top: 34px; color: var(--faint); font-size: 13px; line-height: 1.8; }
+    .accent-cyan { color: var(--cyan); } .accent-gold { color: var(--gold); } .accent-green { color: var(--green); } .accent-red { color: var(--red); }
+
+    @media (max-width: 980px) {
+      .grid.cols-4, .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
+      .pipe-row { grid-template-columns: 1fr; }
+      .nav { border-radius: 24px; }
+    }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      body::before, .nav { display: none; }
+      .hero, .card, .pipe-stage, .svg-wrap { box-shadow: none; background: #fff; color: #111; border-color: #ccc; }
+      .label, .pipe-stage p, .knowledge p, .road p, li, .event small { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero" id="top">
+      <div class="kicker">NAIM / Affective Avatar Prototype</div>
+      <h1>从摄像头信号到可动 VRM：当前框架、进度与连接知识</h1>
+      <p>
+        这份可视化文件总结 NAIM 目前的完整链路：MediaPipe 负责底层感知，规则/适配器层把信号变成 AU、表情、appraisal proxy 与反馈，Kalidokit + Three/VRM 负责把姿态、手势与头部转成 Avatar 骨骼动作。
+      </p>
+      <div class="hero-meta">
+        <span class="pill done">已跑通：Face / Pose / Hands / VRM Preview</span>
+        <span class="pill done">验证：smoke:core + build pass</span>
+        <span class="pill tune">当前调试焦点：手指轴向与手势自然度</span>
+        <span class="pill">文件：NAIM_visual_progress.html</span>
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="页面导航">
+      <a href="#snapshot">总览</a>
+      <a href="#pipeline">系统链路</a>
+      <a href="#map">连接地图</a>
+      <a href="#progress">进度</a>
+      <a href="#knowledge">MediaPipe / Kalidokit</a>
+      <a href="#next">下一步</a>
+    </nav>
+
+    <section id="snapshot">
+      <div class="section-title"><h2>一眼看懂当前状态</h2><span>Snapshot</span></div>
+      <div class="grid cols-4">
+        <article class="card"><span class="tag ok">完成</span><div class="metric">4 层</div><div class="label">感知、识别、appraisal/feedback、avatar 驱动的主框架已分层。</div></article>
+        <article class="card"><span class="tag ok">完成</span><div class="metric">3 类</div><div class="label">FaceLandmarker、PoseLandmarker、HandLandmarker 已接入本地 task 模型。</div></article>
+        <article class="card"><span class="tag lab">原型</span><div class="metric">VRM</div><div class="label">AvatarSample_C.vrm 本地加载，表情、头部、躯干、手臂、手指可被实时驱动。</div></article>
+        <article class="card"><span class="tag warn">待调</span><div class="metric">手指</div><div class="label">已加入手势识别与 Finger axis test panel，下一步要烘焙最佳轴向参数。</div></article>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <div class="section-title"><h2>整体技术框架</h2><span>Pipeline</span></div>
+      <div class="pipeline">
+        <div class="pipe-row">
+          <div class="pipe-stage"><h3>1. 感知层</h3><p>浏览器摄像头 + MediaPipe Web Tasks，本地模型资产运行，无需云端视频上传。</p></div>
+          <div class="pipe-stage flow">
+            <span class="node">Camera</span><span class="arrow">→</span><span class="node">FaceLandmarker</span><span class="node">PoseLandmarker</span><span class="node">HandLandmarker</span><span class="arrow">→</span><span class="node">blendshapes / landmarks / worldLandmarks</span>
+          </div>
+        </div>
+        <div class="pipe-row">
+          <div class="pipe-stage"><h3>2. 信号整理层</h3><p>把 MediaPipe 原始输出转成 NAIM 内部统一帧：FaceFrame + PoseHandDebug。</p></div>
+          <div class="pipe-stage flow">
+            <span class="node">raw blendshapes</span><span class="arrow">→</span><span class="node">AU proxy</span><span class="arrow">→</span><span class="node">Neutral Calibration</span><span class="arrow">→</span><span class="node">Per-AU Sensitivity</span>
+          </div>
+        </div>
+        <div class="pipe-row">
+          <div class="pipe-stage"><h3>3. 认知/反馈层</h3><p>当前仍是规则基线，但已经预留数据集驱动模型替换接口。</p></div>
+          <div class="pipe-stage flow">
+            <span class="node">Expression Adapter</span><span class="arrow">→</span><span class="node">Appraisal Adapter</span><span class="arrow">→</span><span class="node">Feedback Policy</span><span class="arrow">→</span><span class="node">Dashboard / Gentle Prompt</span>
+          </div>
+        </div>
+        <div class="pipe-row">
+          <div class="pipe-stage"><h3>4. Avatar 层</h3><p>同时支持“意图驱动”和“直接信号驱动”。当前 VRM 动作用直接链路更敏捷。</p></div>
+          <div class="pipe-stage flow">
+            <span class="node">blendshape → VRM expression</span><span class="arrow">+</span><span class="node">headPose</span><span class="arrow">+</span><span class="node">Kalidokit Pose/Hand</span><span class="arrow">→</span><span class="node">VRM bones</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="map">
+      <div class="section-title"><h2>周边连接地图</h2><span>System Map</span></div>
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1180 560" role="img" aria-label="NAIM 系统连接地图">
+          <defs>
+            <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="g1" x1="0" x2="1"><stop stop-color="#62e8ff"/><stop offset="1" stop-color="#b18cff"/></linearGradient>
+            <linearGradient id="g2" x1="0" x2="1"><stop stop-color="#f4c86a"/><stop offset="1" stop-color="#7dffb2"/></linearGradient>
+          </defs>
+          <path class="svg-line" d="M170 146 C 300 88, 374 100, 486 156"/>
+          <path class="svg-line" d="M170 280 C 320 280, 368 232, 486 222"/>
+          <path class="svg-line" d="M170 414 C 315 470, 380 392, 486 288"/>
+          <path class="svg-line" d="M690 220 C 790 170, 860 158, 982 180"/>
+          <path class="svg-line" d="M690 220 C 790 270, 860 318, 982 330"/>
+          <path class="svg-line" d="M690 220 C 792 386, 854 432, 982 438"/>
+          <circle cx="132" cy="146" r="64" fill="rgba(98,232,255,0.16)" stroke="rgba(98,232,255,0.58)" filter="url(#glow)"/>
+          <text x="132" y="140" text-anchor="middle" class="svg-text">MediaPipe</text><text x="132" y="160" text-anchor="middle" class="svg-sub">Face / Pose / Hands</text>
+          <circle cx="132" cy="280" r="64" fill="rgba(244,200,106,0.13)" stroke="rgba(244,200,106,0.58)"/>
+          <text x="132" y="274" text-anchor="middle" class="svg-text">Calibration</text><text x="132" y="294" text-anchor="middle" class="svg-sub">neutral + AU sensitivity</text>
+          <circle cx="132" cy="414" r="64" fill="rgba(177,140,255,0.14)" stroke="rgba(177,140,255,0.58)"/>
+          <text x="132" y="408" text-anchor="middle" class="svg-text">Adapters</text><text x="132" y="428" text-anchor="middle" class="svg-sub">model-ready layers</text>
+          <rect x="486" y="142" width="208" height="156" rx="30" fill="rgba(255,255,255,0.07)" stroke="rgba(237,244,255,0.28)"/>
+          <text x="590" y="200" text-anchor="middle" class="svg-text" style="font-size:18px">NAIM Frame</text>
+          <text x="590" y="228" text-anchor="middle" class="svg-sub">FaceFrame + PoseHandDebug</text>
+          <text x="590" y="252" text-anchor="middle" class="svg-sub">统一实时数据合同</text>
+          <circle cx="1026" cy="180" r="66" fill="rgba(125,255,178,0.13)" stroke="rgba(125,255,178,0.58)"/>
+          <text x="1026" y="174" text-anchor="middle" class="svg-text">Dashboard</text><text x="1026" y="194" text-anchor="middle" class="svg-sub">AU / expression / appraisal</text>
+          <circle cx="1026" cy="330" r="66" fill="rgba(98,232,255,0.14)" stroke="rgba(98,232,255,0.58)"/>
+          <text x="1026" y="324" text-anchor="middle" class="svg-text">Kalidokit</text><text x="1026" y="344" text-anchor="middle" class="svg-sub">Pose.solve / Hand.solve</text>
+          <circle cx="1026" cy="438" r="66" fill="rgba(244,200,106,0.14)" stroke="rgba(244,200,106,0.58)"/>
+          <text x="1026" y="432" text-anchor="middle" class="svg-text">Three + VRM</text><text x="1026" y="452" text-anchor="middle" class="svg-sub">expression + bones</text>
+          <rect x="820" y="42" width="186" height="52" rx="18" fill="url(#g1)" opacity="0.9"/>
+          <text x="913" y="73" text-anchor="middle" fill="#061015" font-family="monospace" font-weight="900">实时闭环</text>
+          <rect x="756" y="498" width="230" height="36" rx="18" fill="url(#g2)" opacity="0.9"/>
+          <text x="871" y="521" text-anchor="middle" fill="#061015" font-family="monospace" font-weight="900">可替换模型接口已预留</text>
+        </svg>
+      </div>
+    </section>
+
+    <section id="progress">
+      <div class="section-title"><h2>已完成进度</h2><span>Progress</span></div>
+      <div class="grid cols-2">
+        <article class="card timeline">
+          <div class="event"><small>基础工程</small><br><b>Vite + React + TypeScript</b><br>建立 src/components、core、hooks、store、types 等分层结构。</div>
+          <div class="event"><small>MediaPipe Face</small><br><b>FaceLandmarker 接入</b><br>摄像头、blendshapes、本地 face_landmarker.task、LAN HTTPS dev server 已跑通。</div>
+          <div class="event"><small>AU / Expression / Appraisal</small><br><b>规则基线 + calibration</b><br>neutral baseline、per-AU sensitivity、expression scores、appraisal proxy、feedback policy 已连通。</div>
+          <div class="event"><small>Adapter 架构</small><br><b>数据集驱动的接口已预留</b><br>ExpressionModelAdapter、AppraisalModelAdapter、FeedbackPolicyAdapter、AvatarIntentAdapter 均已成型。</div>
+        </article>
+        <article class="card timeline">
+          <div class="event"><small>VRM</small><br><b>Three + @pixiv/three-vrm</b><br>本地 AvatarSample_C.vrm 加载，preset expressions 可由 MediaPipe blendshape 直接驱动。</div>
+          <div class="event"><small>Pose / Hands</small><br><b>PoseLandmarker + HandLandmarker</b><br>本地 pose_landmarker_lite.task 与 hand_landmarker.task 接入，pose/hands count 与 worldLandmarks 进入实时帧。</div>
+          <div class="event"><small>Kalidokit</small><br><b>姿态和手腕解算</b><br>Pose.solve 驱动胸/脊柱/手臂，Hand.solve 驱动 wrist；针对 AvatarSample_C 进行了手臂竖直方向反转。</div>
+          <div class="event"><small>Gesture / Fingers</small><br><b>手势与手指调试面板</b><br>识别 open、fist、victory、relaxed；Finger axis test panel 可测试轴向、符号、gain。</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="knowledge">
+      <div class="section-title"><h2>关键连接知识</h2><span>MediaPipe / Kalidokit / VRM</span></div>
+      <div class="grid cols-3">
+        <article class="card knowledge">
+          <span class="tag lab">MediaPipe</span>
+          <h3>它在系统里负责“看见”</h3>
+          <p><strong>FaceLandmarker</strong> 输出 face blendshapes 和 facial transformation matrix。前者用于 AU/表情和 VRM 表情；后者用于更稳定的头部 yaw/pitch/roll。</p>
+          <p><strong>PoseLandmarker / HandLandmarker</strong> 输出 2D landmarks 与 worldLandmarks。worldLandmarks 对姿态解算更重要，因为它保留了更接近 3D 的空间关系。</p>
+          <div class="code">Camera → detectForVideo(video, now)<br>→ blendshapes / landmarks / worldLandmarks<br>→ NAIM FaceFrame</div>
+        </article>
+        <article class="card knowledge">
+          <span class="tag warn">Kalidokit</span>
+          <h3>它在系统里负责“解骨架”</h3>
+          <p><strong>Pose.solve</strong> 把 MediaPipe pose landmarks 转成 Spine、UpperArm、LowerArm 等旋转量。它不是 VRM 引擎，而是 retargeting 数学层。</p>
+          <p><strong>Hand.solve</strong> 可解出手腕和手指，但默认 finger offset 对 AvatarSample_C 会让开放手指显得上翘，所以当前只保留 wrist，手指改为自定义 curl。</p>
+          <div class="code">Pose.solve(world, image, { runtime: 'mediapipe' })<br>Hand.solve(handLandmarks, side)<br>→ rigRotation(vrmBone, solvedRotation)</div>
+        </article>
+        <article class="card knowledge">
+          <span class="tag ok">VRM</span>
+          <h3>它在系统里负责“显形”</h3>
+          <p><strong>@pixiv/three-vrm</strong> 提供 humanoid normalized bones 与 expression manager。NAIM 当前同时驱动 preset expressions 与 humanoid bones。</p>
+          <p>注意：不同 VRM 模型的骨骼轴向和默认姿态可能不同，所以“数学正确”不等于“视觉自然”。这就是 Finger axis test panel 的意义。</p>
+          <div class="code">blendshape → expressionManager.setValue()<br>pose/hand → humanoid.getNormalizedBoneNode()<br>bone.quaternion.slerp(target)</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="next">
+      <div class="section-title"><h2>下一步路线</h2><span>Roadmap</span></div>
+      <div class="filters" role="group" aria-label="路线筛选">
+        <button class="filter active" data-filter="all">全部</button>
+        <button class="filter" data-filter="avatar">Avatar</button>
+        <button class="filter" data-filter="model">模型/数据</button>
+        <button class="filter" data-filter="product">产品化</button>
+      </div>
+      <div class="grid cols-3" id="roadmapGrid">
+        <article class="card road" data-kind="avatar"><span class="tag warn">优先</span><h3>1. 校准手指轴向</h3><p>使用 Finger axis test panel 找出 AvatarSample_C 上每根手指最自然的 axis/sign/gain，然后把最佳参数烘焙进自动 mapper。</p></article>
+        <article class="card road" data-kind="avatar"><span class="tag warn">优先</span><h3>2. 真人实时手势验收</h3><p>验证 open / fist / victory：V 手势应 index + middle 打开，ring + little 收拢；开放手应回到 exact rest。</p></article>
+        <article class="card road" data-kind="avatar"><span class="tag lab">调优</span><h3>3. 镜像与左右手确认</h3><p>当前按 Kalidokit selfie 示例交换左右手；若实测左右反了，只需翻转 handedness swap 策略。</p></article>
+        <article class="card road" data-kind="model"><span class="tag lab">后续</span><h3>4. 数据集驱动 AU→Expression</h3><p>目前规则层不再继续手调，等有标注数据后接入 ExpressionModelAdapter 替换 rule-based baseline。</p></article>
+        <article class="card road" data-kind="model"><span class="tag lab">后续</span><h3>5. Appraisal proxy 优化</h3><p>保留“proxy estimate”边界，不做心理真值宣称；未来可用多模态数据提升 pleasantness/novelty/control 等估计。</p></article>
+        <article class="card road" data-kind="product"><span class="tag ok">工程</span><h3>6. Demo 汇报版本</h3><p>把当前 NAIM 页面整理成稳定演示：启动提示、校准引导、信号状态灯、avatar 骨骼诊断和故障提示。</p></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>当前文件与验证</h2><span>Evidence</span></div>
+      <div class="grid cols-2">
+        <article class="card">
+          <h3>关键源码位置</h3>
+          <ul>
+            <li><code>src/hooks/useFaceTracking.ts</code>：统一运行 Face / Pose / Hand landmarkers。</li>
+            <li><code>src/core/avatar/directBlendshapeToVrm.ts</code>：MediaPipe blendshape → VRM preset expression。</li>
+            <li><code>src/core/avatar/directPoseHandToVrm.ts</code>：Kalidokit pose/hand + 自定义 finger curl → VRM bones。</li>
+            <li><code>src/core/mediapipe/handFeatures.ts</code>：palm/back、openness、fist/open/victory 等手势 proxy。</li>
+            <li><code>src/components/AvatarScene/FingerTestPanel.tsx</code>：手指轴向手动校准面板。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>已知边界</h3>
+          <ul>
+            <li>Appraisal 是 proxy estimate，不是心理诊断或心理真值。</li>
+            <li>Kalidokit 输出需要按具体 VRM 模型调轴向；AvatarSample_C 已做手臂竖直反转。</li>
+            <li>手掌/手背判断来自 world-landmark palm normal proxy，仍需实测确认符号。</li>
+            <li>VRM 本地模型位于 <code>public/models-local/</code>，应保持 ignored，不提交。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer">
+      生成说明：这是一份静态、可直接打开的 HTML 汇报页。它不依赖外部 CDN，可作为阶段总结、组会材料或后续开发路线图。<br>
+      核心判断：NAIM 的大框架已经站稳；真正的难点已经从“能不能连起来”转到“如何让 avatar 动得自然、可信、可校准”。
+    </p>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll('button.filter');
+    const cards = document.querySelectorAll('.road');
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.filter;
+        buttons.forEach((b) => b.classList.toggle('active', b === button));
+        cards.forEach((card) => {
+          const visible = filter === 'all' || card.dataset.kind === filter;
+          card.hidden = !visible;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
