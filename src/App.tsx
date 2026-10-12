@@ -1,54 +1,28 @@
-import { useState } from 'react';
-import { CameraDebugger } from './components/CameraDebugger/CameraDebugger';
-import { Dashboard } from './components/Dashboard/Dashboard';
-import { FeedbackPanel } from './components/FeedbackPanel/FeedbackPanel';
-import { ResearchExportPanel } from './components/ResearchExportPanel/ResearchExportPanel';
-import { AvatarScene } from './components/AvatarScene/AvatarScene';
+import { Suspense, lazy, useState } from 'react';
+import MobileExperience from './features/live-feedback/MobileExperience';
+import { UpdatePrompt } from './platform/pwa/UpdatePrompt';
 import './styles/app.css';
 
-export default function App() {
-  const [mode, setMode] = useState<'stage' | 'research'>('stage');
+const ResearchView = lazy(() => import('./features/research/ResearchView'));
+const StageView = lazy(() => import('./features/avatar/StageView'));
+type View = 'live' | 'research' | 'stage';
 
-  if (mode === 'stage') {
-    return (
-      <main className="stage-shell">
-        <AvatarScene variant="stage" />
-        <div className="stage-camera-card">
-          <CameraDebugger variant="stage" />
-        </div>
-        <button className="mode-switch research-switch" onClick={() => setMode('research')}>Research UI</button>
-      </main>
-    );
-  }
+export default function App() {
+  const [view, setView] = useState<View>('live');
 
   return (
-    <main className="lab-shell">
-      <button className="mode-switch stage-switch" onClick={() => setMode('stage')}>Stage UI</button>
-      <header className="hero">
-        <div>
-          <p className="eyebrow">NAIM · MediaPipe Extension Lab</p>
-          <h1>AU + Expression + Appraisal Proxy</h1>
-          <p className="hero-copy">
-            从开源 MediaPipe face signals 出发，构建可解释的 AU proxy、基础表情倾向、appraisal proxy 与反馈闭环。
-          </p>
-        </div>
-        <div className="status-chip">MVP-1 internal scaffold</div>
-      </header>
-
-      <section className="mission-strip">
-        <span>FaceLandmarker first</span>
-        <span>AU proxy, not clinical FACS</span>
-        <span>Appraisal as proxy estimate</span>
-        <span>Export / avatar optional</span>
-      </section>
-
-      <div className="layout-grid">
-        <CameraDebugger />
-        <Dashboard />
-        <FeedbackPanel />
-        <ResearchExportPanel />
-        <AvatarScene />
-      </div>
-    </main>
+    <>
+      <nav className="app-nav" aria-label="视图切换">
+        {(['live', 'research', 'stage'] as const).map((item) => (
+          <button key={item} type="button" className={view === item ? 'active' : ''} onClick={() => setView(item)} aria-current={view === item ? 'page' : undefined}>
+            {item === 'live' ? '体验' : item === 'research' ? '研究' : '舞台'}
+          </button>
+        ))}
+      </nav>
+      <Suspense fallback={<main className="view-loading">正在加载视图…</main>}>
+        {view === 'live' ? <MobileExperience /> : view === 'research' ? <ResearchView /> : <StageView />}
+      </Suspense>
+      <UpdatePrompt />
+    </>
   );
 }

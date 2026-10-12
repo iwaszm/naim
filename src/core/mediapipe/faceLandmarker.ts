@@ -7,11 +7,10 @@ import type { BlendshapeMap, HeadPose } from '../../types/signals';
 import { assetUrl } from '../assets/baseUrl';
 
 const DEFAULT_MODEL_URL = assetUrl('models/face_landmarker.task');
-const CDN_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
 
 export async function createFaceLandmarker(modelAssetPath = DEFAULT_MODEL_URL): Promise<FaceLandmarker> {
   const vision = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm',
+    assetUrl('vendor/mediapipe/tasks-vision'),
   );
 
   try {
@@ -23,9 +22,9 @@ export async function createFaceLandmarker(modelAssetPath = DEFAULT_MODEL_URL): 
       outputFacialTransformationMatrixes: true,
     });
   } catch (error) {
-    console.warn('Local MediaPipe model failed, falling back to CDN model.', error);
+    console.warn('GPU delegate unavailable; retrying local FaceLandmarker on CPU.', error);
     return FaceLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: CDN_MODEL_URL, delegate: 'GPU' },
+      baseOptions: { modelAssetPath, delegate: 'CPU' },
       runningMode: 'VIDEO',
       numFaces: 1,
       outputFaceBlendshapes: true,

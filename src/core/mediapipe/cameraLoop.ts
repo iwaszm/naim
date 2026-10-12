@@ -2,6 +2,8 @@ export type CameraLoopControls = {
   stop: () => void;
 };
 
+export type CameraFacing = 'user' | 'environment';
+
 async function getVideoDevices(): Promise<MediaDeviceInfo[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   try {
@@ -16,7 +18,7 @@ export async function listCameraLabels(): Promise<string[]> {
   return devices.map((device, index) => device.label || `Camera ${index + 1}`);
 }
 
-export async function startCamera(video: HTMLVideoElement): Promise<MediaStream> {
+export async function startCamera(video: HTMLVideoElement, facing: CameraFacing = 'user'): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error('当前浏览器不支持 getUserMedia，或页面不是安全上下文。请使用 HTTPS / localhost。');
   }
@@ -24,25 +26,17 @@ export async function startCamera(video: HTMLVideoElement): Promise<MediaStream>
   const devices = await getVideoDevices();
   const attempts: MediaStreamConstraints[] = [];
 
-  if (devices[0]?.deviceId) {
-    attempts.push({
-      video: {
-        deviceId: { exact: devices[0].deviceId },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-      audio: false,
-    });
-  }
-
   attempts.push(
     {
       video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        facingMode: { exact: facing },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
       },
       audio: false,
     },
+    { video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+    ...(devices[0]?.deviceId ? [{ video: { deviceId: { exact: devices[0].deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }] : []),
     { video: true, audio: false },
   );
 

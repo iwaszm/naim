@@ -7,7 +7,7 @@ import {
 } from '@mediapipe/tasks-vision';
 import { assetUrl } from '../assets/baseUrl';
 
-const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
+const WASM_URL = assetUrl('vendor/mediapipe/tasks-vision');
 const POSE_MODEL_URL = assetUrl('models/pose_landmarker_lite.task');
 const HAND_MODEL_URL = assetUrl('models/hand_landmarker.task');
 const POSE_CDN_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task';

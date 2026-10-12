@@ -3,8 +3,10 @@ import { faceToAU } from './faceToAU';
 import { getAppraisalAdapter, getExpressionAdapter } from './modelRegistry';
 import { calibrateAU } from './calibrateAU';
 import type { AUProxy } from '../../types/signals';
+import { SIGNAL_SCHEMA_VERSION, type RecognitionResult, type VisionSample } from '../../domain/signals/contracts';
 
-export function buildFaceFrame(blendshapes: BlendshapeMap, frameIndex: number, timestamp = performance.now(), fps?: number, neutralAuBaseline?: AUProxy): FaceFrame {
+export function recognizeSample(sample: VisionSample, neutralAuBaseline?: AUProxy): RecognitionResult {
+  const blendshapes = sample.blendshapes;
   const rawAuProxy = faceToAU(blendshapes);
   const calibrated = Boolean(neutralAuBaseline);
   const auProxy = calibrateAU(rawAuProxy, neutralAuBaseline);
@@ -21,9 +23,7 @@ export function buildFaceFrame(blendshapes: BlendshapeMap, frameIndex: number, t
   });
 
   return {
-    timestamp,
-    frameIndex,
-    blendshapes,
+    schemaVersion: SIGNAL_SCHEMA_VERSION,
     auProxy,
     rawAuProxy: calibrated ? rawAuProxy : undefined,
     calibrated,
@@ -31,6 +31,12 @@ export function buildFaceFrame(blendshapes: BlendshapeMap, frameIndex: number, t
     expressionScores,
     appraisalProxy,
     appraisalModelId: appraisalAdapter.id,
-    fps,
   };
+}
+
+/** Compatibility adapter for existing dashboard and avatar consumers. */
+export function buildFaceFrame(blendshapes: BlendshapeMap, frameIndex: number, timestamp = performance.now(), fps?: number, neutralAuBaseline?: AUProxy): FaceFrame {
+  const sample: VisionSample = { schemaVersion: SIGNAL_SCHEMA_VERSION, blendshapes, frameIndex, timestamp, fps };
+  const recognized = recognizeSample(sample, neutralAuBaseline);
+  return { ...sample, ...recognized };
 }

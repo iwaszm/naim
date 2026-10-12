@@ -6,3 +6,4 @@ dist/
 *.local
 .DS_Store
 certs/
+public/vendor/mediapipe/tasks-vision/
