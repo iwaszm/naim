@@ -17,6 +17,7 @@ export class TrackingSession {
   private lastSample = 0;
   private generation = 0;
   private mode: TrackingMode = 'face';
+  private cleanup: Promise<void> = Promise.resolve();
 
   constructor(private video: HTMLVideoElement, private events: SessionEvents) {}
 
@@ -25,6 +26,8 @@ export class TrackingSession {
     const generation = ++this.generation;
     this.mode = mode;
     try {
+      await this.cleanup;
+      if (generation !== this.generation) return;
       await this.inference.prepare(mode);
       if (generation !== this.generation) return;
       const stream = await startCamera(this.video, facing);
@@ -58,15 +61,21 @@ export class TrackingSession {
     this.generation++;
     this.loop?.stop();
     this.loop = undefined;
-    stopCamera(this.stream ?? null);
+    const stream = this.stream ?? null;
     this.stream = undefined;
-    this.video.pause();
-    this.video.srcObject = null;
     this.lastSample = 0;
+    this.cleanup = this.cleanup.then(async () => {
+      await this.inference.waitForIdle();
+      stopCamera(stream);
+      if (this.video.srcObject === stream) {
+        this.video.pause();
+        this.video.srcObject = null;
+      }
+    });
   }
 
   dispose() {
     this.stop();
-    this.inference.dispose();
+    void this.cleanup.then(() => this.inference.dispose());
   }
 }

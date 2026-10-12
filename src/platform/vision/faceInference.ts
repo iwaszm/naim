@@ -11,6 +11,7 @@ export class FaceInference {
   private holistic?: Holistic;
   private holisticResults?: HolisticResults;
   private holisticBusy = false;
+  private holisticSend?: Promise<void>;
 
   async prepare(mode: TrackingMode) {
     this.landmarker ??= await createFaceLandmarker();
@@ -26,9 +27,14 @@ export class FaceInference {
     if (!this.landmarker || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
     if (mode === 'full' && this.holistic && !this.holisticBusy) {
       this.holisticBusy = true;
-      void this.holistic.send({ image: video }).catch((error) => {
+      const send = this.holistic.send({ image: video });
+      this.holisticSend = send;
+      void send.catch((error) => {
         console.warn('Holistic inference failed.', error);
-      }).finally(() => { this.holisticBusy = false; });
+      }).finally(() => {
+        if (this.holisticSend === send) this.holisticSend = undefined;
+        this.holisticBusy = false;
+      });
     }
     const result = this.landmarker.detectForVideo(video, timestamp);
     const blendshapes = extractBlendshapes(result);
@@ -42,6 +48,11 @@ export class FaceInference {
       poseHand: mode === 'full' ? holisticResultsToPoseHand(this.holisticResults) : undefined,
       fps,
     };
+  }
+
+  async waitForIdle() {
+    if (this.holisticSend) await this.holisticSend.catch(() => undefined);
+    this.holisticResults = undefined;
   }
 
   dispose() {
